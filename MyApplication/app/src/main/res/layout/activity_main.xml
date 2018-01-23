@@ -35,23 +35,12 @@
         </threetoone.sleepinessdistance.camera.CameraSourcePreview>
     </LinearLayout>
 
-    <TextView
-        android:id="@+id/textView"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:gravity="center_horizontal"
-        android:text=" "
-        android:textAppearance="?android:attr/textAppearanceSmall"
-        android:textStyle="bold"
-        android:layout_below="@+id/linearlayout"
-        android:layout_centerHorizontal="true"/>
-
     <Button
         android:id="@+id/start_button"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="start"
-        android:layout_below="@id/textView"
+        android:layout_below="@id/linearlayout"
         android:layout_centerInParent="true"/>
     </RelativeLayout>
 </LinearLayout>
