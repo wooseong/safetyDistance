@@ -1,16 +1,20 @@
 package threetoone.sleepinessdistance;
 
 import android.Manifest;
+
+import android.annotation.TargetApi;
 import android.app.Activity;
 import android.app.Dialog;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.pm.PackageManager;
-import android.graphics.Color;
 import android.media.AudioManager;
 import android.media.MediaPlayer;
+import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
+import android.provider.Settings;
 import android.support.design.widget.Snackbar;
 import android.support.multidex.MultiDex;
 import android.support.v4.app.ActivityCompat;
@@ -18,6 +22,8 @@ import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
 import android.view.View;
+import android.widget.Button;
+import android.widget.ImageButton;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -38,11 +44,13 @@ import threetoone.sleepinessdistance.camera.GraphicOverlay;
 
 public class MainActivity extends AppCompatActivity {
     private static final String TAG = "FaceTracker";
+    private static final int ACTION_MANAGE_OVERLAY_PERMISSION_REQUEST_CODE = 1;
     private CameraSource mCameraSource = null;
     private CameraSourcePreview mPreview;
     private GraphicOverlay mGraphicOverlay;
     private MediaPlayer mp;
     private AudioManager audioManager;
+    private ImageButton connectImageButton;
 
     private static final int RC_HANDLE_GMS = 9001;
     // permission request codes need to be < 256
@@ -63,11 +71,26 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
         init();
         action();
+//        Intent intent = new Intent(MainActivity.this, BlueLightFilterService.class);
+//        startService(intent);
+        Button btn = (Button) findViewById(R.id.test);
+        btn.setOnClickListener(
+                new Button.OnClickListener() {
+                    public void onClick(View v) {
+//                        checkPermission();
+                        Intent intent = new Intent(
+                                getApplicationContext(), SettingActivity.class);
+                        startActivity(intent);
+//                        finish();
+                    }
+                }
+        );
     }
 
     public void init() {
         mPreview = (CameraSourcePreview) findViewById(R.id.preview);
         mGraphicOverlay = (GraphicOverlay) findViewById(R.id.faceOverlay);
+        connectImageButton = (ImageButton) findViewById(R.id.connectButton);
         audioManager = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
         c = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC);
         mPreview.setVisibility(View.INVISIBLE);
@@ -296,6 +319,21 @@ public class MainActivity extends AppCompatActivity {
         return filterTimer2;
     }
 
+    public void filterOn() {
+        if (filterOnTime == 0) {
+            filterOnTime = System.currentTimeMillis();
+            filterTimer1 = filterTimer1TaskMaker();
+            filterTimer2 = filterTimer2TaskMaker();
+            timer.schedule(filterTimer1, 0, 300); //0.3초
+            timer.schedule(filterTimer2, 150, 300); //0.3초
+        }
+    }
+
+    public void filterOff() {
+        filterTimer1.cancel();
+        filterTimer2.cancel();
+    }
+
     // Graphic Face Tracker
 
     private class GraphicFaceTrackerFactory implements MultiProcessor.Factory<Face> {
@@ -466,19 +504,32 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    public void filterOn() {
-        if (filterOnTime == 0) {
-            filterOnTime = System.currentTimeMillis();
-            filterTimer1 = filterTimer1TaskMaker();
-            filterTimer2 = filterTimer2TaskMaker();
-            timer.schedule(filterTimer1, 0, 300); //0.3초
-            timer.schedule(filterTimer2, 150, 300); //0.3초
+    public void checkPermission() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {   // 마시멜로우 이상일 경우
+            if (!Settings.canDrawOverlays(this)) {              // 체크
+                Intent intent = new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                        Uri.parse("package:" + getPackageName()));
+                startActivityForResult(intent, ACTION_MANAGE_OVERLAY_PERMISSION_REQUEST_CODE);
+            } else {
+                startService(new Intent(MainActivity.this, MyService.class));
+            }
+        } else {
+            startService(new Intent(MainActivity.this, MyService.class));
         }
     }
 
-    public void filterOff() {
-        filterTimer1.cancel();
-        filterTimer2.cancel();
+    @TargetApi(Build.VERSION_CODES.M)
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == ACTION_MANAGE_OVERLAY_PERMISSION_REQUEST_CODE) {
+            if (!Settings.canDrawOverlays(this)) {
+                // TODO 동의를 얻지 못했을 경우의 처리
+
+            } else {
+                startService(new Intent(MainActivity.this, MyService.class));
+            }
+        }
     }
 
     @Override

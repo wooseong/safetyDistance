@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
+    <PreferenceCategory android:title="General">
+
+        <Preference
+            android:key="key_login"
+            android:title="Login"/>
+
+        <Preference
+            android:key="key_save_video"
+            android:title="Save Video" />
+
+    </PreferenceCategory>
+
+    <PreferenceCategory android:title="Notifications">
+ser
+        <SwitchPreference
+            android:defaultValue="true"
+            android:key="key_filter_notification"
+            android:title="Filter Notification" />
+
+        <SwitchPreference
+            android:defaultValue="true"
+            android:key="key_sound_notification"
+            android:title="Sound Notification" />
+    </PreferenceCategory>
+
+    <PreferenceCategory android:title="About">
+
+        <Preference
+            android:summary="Got any queries? We are happy to help!"
+            android:title="Send Feedback" />
+
+        <!-- preference opens url in browser -->
+        <Preference
+            android:summary="View frequently asked questions"
+            android:title="FAQ">
+        </Preference>
+    </PreferenceCategory>
+
+</PreferenceScreen>
