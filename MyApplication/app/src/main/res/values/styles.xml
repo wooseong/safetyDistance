@@ -23,4 +23,12 @@
         <item name="android:textColor">#D8D8D8</item>
     </style>
 
+    <style name="app_legacy_theme" parent="android:Theme.NoTitleBar">
+        <item name="colorPrimary">@color/colorPrimary</item>
+        <item name="colorPrimaryDark">@color/colorPrimaryDark</item>
+        <item name="colorAccent">@color/colorAccent</item>
+        <item name="android:statusBarColor">#000</item>
+        <item name="android:windowBackground">@android:color/white</item>
+    </style>
+
 </resources>

@@ -149,17 +149,13 @@
                 android:background="@drawable/green" />
         </RelativeLayout>
 
-        <ImageButton
+        <Button
             android:id="@+id/connectButton"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_below="@+id/carlayout"
             android:layout_centerHorizontal="true"
-            android:background="@drawable/disconnect" />
+            android:background="@drawable/connect" />
 
-        <Button
-            android:layout_width="100dp"
-            android:layout_height="100dp"
-            android:id="@+id/test"/>
     </RelativeLayout>
 </LinearLayout>
