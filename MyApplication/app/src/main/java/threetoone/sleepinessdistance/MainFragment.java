@@ -1,15 +1,14 @@
 package threetoone.sleepinessdistance;
 
 import android.Manifest;
-
 import android.annotation.TargetApi;
 import android.app.Activity;
 import android.app.Dialog;
-import android.appwidget.AppWidgetManager;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.graphics.Color;
 import android.media.AudioManager;
 import android.media.MediaPlayer;
 import android.net.Uri;
@@ -20,11 +19,12 @@ import android.support.design.widget.Snackbar;
 import android.support.multidex.MultiDex;
 import android.support.v4.app.ActivityCompat;
 import android.support.v7.app.AlertDialog;
-
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
+import android.widget.ImageView;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import com.google.android.gms.common.ConnectionResult;
@@ -42,6 +42,7 @@ import java.util.TimerTask;
 import threetoone.sleepinessdistance.camera.CameraSourcePreview;
 import threetoone.sleepinessdistance.camera.GraphicOverlay;
 
+
 public class MainFragment extends AppCompatActivity {
     private static final String TAG = "FaceTracker";
     private static final int ACTION_MANAGE_OVERLAY_PERMISSION_REQUEST_CODE = 1;
@@ -53,27 +54,27 @@ public class MainFragment extends AppCompatActivity {
     private Button connectButton;
 
     private static final int RC_HANDLE_GMS = 9001;
-    // permission request codes need to be < 256
     private static final int RC_HANDLE_CAMERA_PERM = 2;
 
     public int detectionStart = 0;
     private long filterOnTime = 0, filterOffTime = 0;
-    private boolean detectionCheck = false, alertTimeCheck = false, filterCheck = false;
+    private boolean detectionCheck = false, filterCheck = false;
 
     private int c;
 
-    private TimerTask eyeAvgTimer, filterTimer1, filterTimer2, alertTimer;
+    private TimerTask eyeAvgTimer, filterTimer1, filterTimer2;
     private Timer timer;
 
-    public boolean value;
+    public boolean value, soundOnOff=false;
 
-    public static boolean bFilter = true, bSound = true;
+    public static boolean bFilter = false, bSound = false;
 
     @Override
     public void onCreate(Bundle icicle) {
         super.onCreate(icicle);
         setContentView(R.layout.fragment_main);
 
+        Singleton.getInstance().setSleepTextView((TextView) findViewById(R.id.sleepTextview));
         mPreview = (CameraSourcePreview) findViewById(R.id.preview);
         mGraphicOverlay = (GraphicOverlay) findViewById(R.id.faceOverlay);
         connectButton = (Button) findViewById(R.id.connectButton);
@@ -81,6 +82,7 @@ public class MainFragment extends AppCompatActivity {
         c = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC);
         mPreview.setVisibility(View.INVISIBLE);
 
+        action();
         connectButton.setOnClickListener(
                 new Button.OnClickListener() {
                     public void onClick(View v) {
@@ -88,47 +90,31 @@ public class MainFragment extends AppCompatActivity {
                     }
                 }
         );
-
     }
 
     public void buttonEvent() {
-        final Context context = getApplicationContext();
-        AppWidgetManager widgetManager = AppWidgetManager.getInstance(context);
         value = Singleton.getInstance().getSwitchValue();
 
         if (value) {
-            connectButton.setBackgroundResource(R.drawable.connect);
-
+            connectButton.setBackgroundResource(R.drawable.connectbutton2);
             value = false;
             Singleton.getInstance().setSwitchValue(value);
-
+            bFilter = false;
+            bSound = false;
 //            Intent intent = new Intent(MainFragment.this, BackgroundService.class);
 //            stopService(intent);
         } else {
-            connectButton.setBackgroundResource(R.drawable.disconnect);
-
+            connectButton.setBackgroundResource(R.drawable.disconnectbutton2);
             value = true;
             Singleton.getInstance().setSwitchValue(value);
-
-            action();
-//            Intent intent = new Intent(MainFragment.this, BackgroundService.class);
-//            startService(intent);
+            bFilter = true;
+            bSound = true;
         }
     }
 
     public void action() {
 
-        eyeAvgTimer = new TimerTask() {
-            @Override
-            public void run() {
-                detectionStart++;
-            }
-        };
-
-        timer = new Timer();
-        timer.schedule(eyeAvgTimer, 0, 30000); //30초
-
-        // Check for the camera permission before accessing the camera.  If the
+        // Check for the camera permission before accessing the camera. If the
         // permission is not granted yet, request permission.
         int rc = ActivityCompat.checkSelfPermission(this, Manifest.permission.CAMERA);
         if (rc == PackageManager.PERMISSION_GRANTED) {
@@ -140,6 +126,16 @@ public class MainFragment extends AppCompatActivity {
         if (c == 0) {
             Toast.makeText(getApplicationContext(), "Volume is MUTE", Toast.LENGTH_LONG).show();
         }
+
+        eyeAvgTimer = new TimerTask() {
+            @Override
+            public void run() {
+                detectionStart++;
+            }
+        };
+
+        timer = new Timer();
+        timer.schedule(eyeAvgTimer, 0, 30000); //30초
     }
 
     private void requestCameraPermission() {
@@ -220,7 +216,6 @@ public class MainFragment extends AppCompatActivity {
         if (mCameraSource != null) {
             mCameraSource.release();
         }
-        stop_playing();
     }
 
     @Override
@@ -276,47 +271,6 @@ public class MainFragment extends AppCompatActivity {
         }
     }
 
-    public void play_media() {
-        stop_playing();
-        mp = MediaPlayer.create(this, R.raw.alarm);
-        mp.start();
-    }
-
-    public void stop_playing() {
-        if (mp != null) {
-            mp.stop();
-            mp.release();
-            mp = null;
-        }
-    }
-
-    public void alert_box() {
-        if (bSound) {
-            play_media();
-            runOnUiThread(new Runnable() {
-                @Override
-                public void run() {
-                    play_media();
-                    if (!alertTimeCheck) {
-                        alertTimer = alertTimerTaskMaker();
-                        timer.schedule(alertTimer, 2000, 2000); //3초
-                    }
-                }
-            });
-        }
-    }
-
-    public TimerTask alertTimerTaskMaker() {
-        TimerTask alertTimer1 = new TimerTask() {
-            @Override
-            public void run() {
-                stop_playing();
-                alertTimeCheck = true;
-            }
-        };
-        return alertTimer1;
-    }
-
     public TimerTask filterTimer1TaskMaker() {
         TimerTask filterTimer1 = new TimerTask() {
             @Override
@@ -341,7 +295,25 @@ public class MainFragment extends AppCompatActivity {
         return filterTimer2;
     }
 
-    public void filterOn() {
+    public void filterOn(int i) {
+        TextView text = (TextView) findViewById(R.id.sleepTextview);
+        switch (i) {
+            case 1:
+                Singleton.getInstance().getSleepTextView().setText("MISSING");
+                text.setText("Face Missing");
+                break;
+            case 2:
+            case 3:
+                Singleton.getInstance().getSleepTextView().setText("WARNING");
+                Singleton.getInstance().getSleepTextView().setTextColor(Color.RED);
+                text.setText("WARNING");
+                break;
+        }
+        if(bSound)
+        {
+            play_media();
+            soundOnOff=true;
+        }
         if (bFilter) {
             if (filterOnTime == 0) {
                 filterOnTime = System.currentTimeMillis();
@@ -354,8 +326,36 @@ public class MainFragment extends AppCompatActivity {
     }
 
     public void filterOff() {
-        filterTimer1.cancel();
-        filterTimer2.cancel();
+        if(soundOnOff){
+            stop_playing();
+            soundOnOff=false;
+        }
+        if (filterOnTime != 0) {
+            filterOffTime = System.currentTimeMillis();
+            if (filterOffTime - filterOnTime >= 750) {
+                filterTimer1.cancel();
+                filterTimer2.cancel();
+                filterOnTime = 0;
+                if (filterCheck) {
+                    Intent intent = new Intent(MainFragment.this, BlueLightFilterService.class);
+                    stopService(intent);
+                }
+            }
+        }
+    }
+    public void play_media()
+    {
+        stop_playing();
+        mp = MediaPlayer.create(this, R.raw.alarm);
+        mp.start();
+    }
+    public void stop_playing()
+    {
+        if (mp != null) {
+            mp.stop();
+            mp.release();
+            mp = null;
+        }
     }
 
     // Graphic Face Tracker
@@ -414,24 +414,14 @@ public class MainFragment extends AppCompatActivity {
                 eyeCloseCNT1 = eyeCloseCNT2 = eyeCloseCNT;
                 detectStart = System.currentTimeMillis();
             }
-            if (filterOnTime != 0) {
-                filterOffTime = System.currentTimeMillis();
-                if (filterOffTime - filterOnTime >= 750) {
-                    filterOff();
-                    filterOnTime = 0;
-                    if (filterCheck) {
-                        Intent intent = new Intent(MainFragment.this, BlueLightFilterService.class);
-                        stopService(intent);
-                    }
-                }
-            }
+            filterOff();
             eye_tracking(face);
         }
 
         @Override
         public void onMissing(FaceDetector.Detections<Face> detectionResults) {
             mOverlay.remove(mFaceGraphic);
-            filterOn();
+            filterOn(1);
         }
 
         @Override
@@ -484,6 +474,7 @@ public class MainFragment extends AppCompatActivity {
                         if (errorCnt1 > 3 || errorCnt2 > 3) {
                             errorCnt1 = 0;
                             errorCnt2 = 0;
+                            filterOn(2);
                         }
                     }
                 }
@@ -495,23 +486,15 @@ public class MainFragment extends AppCompatActivity {
                 if (detectionCheck) {
                     if (min_time > eyeCloseTime) {
                     } else if (eyeCloseTime > max_time) {
-                        filterOn();
+
+                        filterOn(3);
                     }
                 }
                 begin = stop;
             }
             state_f = state_i;
-            if (filterOnTime != 0) {
-                filterOffTime = System.currentTimeMillis();
-                if (filterOffTime - filterOnTime >= 750) {
-                    filterOff();
-                    filterOnTime = 0;
-                    if (filterCheck) {
-                        Intent intent = new Intent(MainFragment.this, BlueLightFilterService.class);
-                        stopService(intent);
-                    }
-                }
-            }
+
+            filterOff();
         }
     }
 
