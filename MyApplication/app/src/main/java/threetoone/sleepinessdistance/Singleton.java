@@ -11,7 +11,9 @@ public class Singleton {
     private int velocity;
     private double safetyDistance;
     private double objectDistance;
-    private TextView speedTextView,sleepTextView;
+    private TextView speedTextView;
+    private TextView sleepTextView;
+    private TextView windowSleepTextView;
     private ImageView mainDistanceImage;
     private ImageView windowDistanceImage;
 
@@ -36,6 +38,8 @@ public class Singleton {
     public TextView getSpeedTextView() { return speedTextView;}
 
     public TextView getSleepTextView() { return sleepTextView;}
+
+    public TextView getWindowSleepTextView() { return windowSleepTextView; }
 
     public ImageView getMainDistanceImage() { return mainDistanceImage; }
 
@@ -66,6 +70,8 @@ public class Singleton {
     public void setMainDistanceImage(ImageView mainDistanceImage) { this.mainDistanceImage = mainDistanceImage; }
 
     public void setWindowDistanceImage(ImageView windowDistanceImage) { this.windowDistanceImage = windowDistanceImage; }
+
+    public void setWindowSleepTextView(TextView windowSleepTextView) { this.windowSleepTextView = windowSleepTextView; }
 
     private static Singleton instance = null;
 

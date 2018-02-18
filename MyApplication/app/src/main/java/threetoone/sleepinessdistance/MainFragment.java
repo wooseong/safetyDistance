@@ -42,7 +42,6 @@ import java.util.TimerTask;
 import threetoone.sleepinessdistance.camera.CameraSourcePreview;
 import threetoone.sleepinessdistance.camera.GraphicOverlay;
 
-
 public class MainFragment extends AppCompatActivity {
     private static final String TAG = "FaceTracker";
     private static final int ACTION_MANAGE_OVERLAY_PERMISSION_REQUEST_CODE = 1;
@@ -65,7 +64,8 @@ public class MainFragment extends AppCompatActivity {
     private TimerTask eyeAvgTimer, filterTimer1, filterTimer2;
     private Timer timer;
 
-    public boolean value, soundOnOff=false;
+    public boolean value, soundOnOff = false, filterOnOff = false, alarm = false;
+
 
     public static boolean bFilter = false, bSound = false;
 
@@ -74,6 +74,8 @@ public class MainFragment extends AppCompatActivity {
         super.onCreate(icicle);
         setContentView(R.layout.fragment_main);
 
+        Singleton.getInstance().setSpeedTextView((TextView) findViewById(R.id.speedTextview));
+        Singleton.getInstance().setMainDistanceImage((ImageView) findViewById(R.id.distanceImage));
         Singleton.getInstance().setSleepTextView((TextView) findViewById(R.id.sleepTextview));
         mPreview = (CameraSourcePreview) findViewById(R.id.preview);
         mGraphicOverlay = (GraphicOverlay) findViewById(R.id.faceOverlay);
@@ -90,6 +92,7 @@ public class MainFragment extends AppCompatActivity {
                     }
                 }
         );
+
     }
 
     public void buttonEvent() {
@@ -97,10 +100,14 @@ public class MainFragment extends AppCompatActivity {
 
         if (value) {
             connectButton.setBackgroundResource(R.drawable.connectbutton2);
+
             value = false;
             Singleton.getInstance().setSwitchValue(value);
             bFilter = false;
             bSound = false;
+            Singleton.getInstance().getSleepTextView().setText("NOMAL");
+            Singleton.getInstance().getSleepTextView().setTextColor(Color.parseColor("#00A0EA"));
+            filter(false, false);
 //            Intent intent = new Intent(MainFragment.this, BackgroundService.class);
 //            stopService(intent);
         } else {
@@ -295,69 +302,96 @@ public class MainFragment extends AppCompatActivity {
         return filterTimer2;
     }
 
-    public void filterOn(int i) {
-        TextView text = (TextView) findViewById(R.id.sleepTextview);
-        switch (i) {
-            case 1:
-                Singleton.getInstance().getSleepTextView().setText("MISSING");
-                text.setText("Face Missing");
-                break;
-            case 2:
-            case 3:
-                Singleton.getInstance().getSleepTextView().setText("WARNING");
-                Singleton.getInstance().getSleepTextView().setTextColor(Color.RED);
-                text.setText("WARNING");
-                break;
-        }
-        if(bSound)
-        {
-            play_media();
-            soundOnOff=true;
-        }
-        if (bFilter) {
-            if (filterOnTime == 0) {
-                filterOnTime = System.currentTimeMillis();
-                filterTimer1 = filterTimer1TaskMaker();
-                filterTimer2 = filterTimer2TaskMaker();
-                timer.schedule(filterTimer1, 0, 300); //0.3초
-                timer.schedule(filterTimer2, 150, 300); //0.3초
+    public void filter(final boolean OnOff, final boolean faceDetect) {
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                if (OnOff) {
+                    if (value) { //connect
+                        if (filterOnTime == 0) { //필터가 처음 들어간다면
+                            filterOnTime = System.currentTimeMillis();
+                            alarm = true;
+                            if (bSound) {
+                                play_media();
+                                soundOnOff = true;
+                            }
+                            if (bFilter) {
+                                filterOnOff = true;
+                                filterTimer1 = filterTimer1TaskMaker();
+                                filterTimer2 = filterTimer2TaskMaker();
+                                timer.schedule(filterTimer1, 0, 300); //0.3초
+                                timer.schedule(filterTimer2, 150, 300); //0.3초
+                            }
+                            Log.e("필터", "켜짐");
+                        }
+                    }
+                } else {
+                    if (filterOnTime != 0) {
+                        filterOffTime = System.currentTimeMillis();
+                        if (filterOffTime - filterOnTime >= 1050) {
+                            alarm = false;
+                            if (soundOnOff) {
+                                stop_playing();
+                                soundOnOff = false;
+                            }
+                            if (filterOnOff) {
+                                filterTimer1.cancel();
+                                filterTimer2.cancel();
+                                filterOnTime = 0;
+                                filterOffTime = 0;
+                                filterOnOff = false;
+                                Log.e("필터", "꺼짐");
+                            }
+                        }
+                    }
+                }
+                Singleton.getInstance().getSleepTextView().post(new Runnable() {
+                    @Override
+                    public void run() {
+                        if (OnOff) {
+                            if (value) {
+                                if (alarm) {
+                                    if (faceDetect) {
+                                        Singleton.getInstance().getSleepTextView().setText("WARNING");
+                                        Singleton.getInstance().getSleepTextView().setTextColor(Color.RED);
+                                        Log.e("텍스트", "warning");
+                                    } else {
+                                        Singleton.getInstance().getSleepTextView().setText("MISSING");
+                                        Singleton.getInstance().getSleepTextView().setTextColor(Color.parseColor("#FFFFFF"));
+                                        Log.e("텍스트", "missing");
+                                    }
+                                }
+                            }
+                        } else {
+                            if (!alarm) {
+                                Singleton.getInstance().getSleepTextView().setText("NOMAL");
+                                Singleton.getInstance().getSleepTextView().setTextColor(Color.parseColor("#00A0EA"));
+                                if (filterCheck) {
+                                    Intent intent = new Intent(MainFragment.this, BlueLightFilterService.class);
+                                    stopService(intent);
+                                }
+                            }
+                        }
+                    }
+                });
             }
-        }
+        }).start();
     }
 
-    public void filterOff() {
-        if(soundOnOff){
-            stop_playing();
-            soundOnOff=false;
-        }
-        if (filterOnTime != 0) {
-            filterOffTime = System.currentTimeMillis();
-            if (filterOffTime - filterOnTime >= 750) {
-                filterTimer1.cancel();
-                filterTimer2.cancel();
-                filterOnTime = 0;
-                if (filterCheck) {
-                    Intent intent = new Intent(MainFragment.this, BlueLightFilterService.class);
-                    stopService(intent);
-                }
-            }
-        }
-    }
-    public void play_media()
-    {
+
+    public void play_media() {
         stop_playing();
         mp = MediaPlayer.create(this, R.raw.alarm);
         mp.start();
     }
-    public void stop_playing()
-    {
+
+    public void stop_playing() {
         if (mp != null) {
             mp.stop();
             mp.release();
             mp = null;
         }
     }
-
     // Graphic Face Tracker
 
     private class GraphicFaceTrackerFactory implements MultiProcessor.Factory<Face> {
@@ -385,7 +419,7 @@ public class MainFragment extends AppCompatActivity {
         }
 
         int state_i, state_f = -1,
-                eyeCloseCNT = 0, eyeCloseCNT1, eyeCloseCNT2,
+                eyeCloseCNT = 1, eyeCloseCNT1 = 1, eyeCloseCNT2 = 1,
                 errorCnt1 = 0, errorCnt2 = 0,
                 CTCTime = 30000;
 
@@ -414,14 +448,17 @@ public class MainFragment extends AppCompatActivity {
                 eyeCloseCNT1 = eyeCloseCNT2 = eyeCloseCNT;
                 detectStart = System.currentTimeMillis();
             }
-            filterOff();
+//            Log.e("코드", "아마도 얼굴인식");
+//            Log.e("필터 끄기", "1");
+            filter(false, false);
             eye_tracking(face);
         }
 
         @Override
         public void onMissing(FaceDetector.Detections<Face> detectionResults) {
             mOverlay.remove(mFaceGraphic);
-            filterOn(1);
+            filter(true, false);
+            Log.e("얼굴", "missing");
         }
 
         @Override
@@ -430,6 +467,7 @@ public class MainFragment extends AppCompatActivity {
         }
 
         private void eye_tracking(Face face) {
+//            Log.e("코드", "아마도 눈인식");
             float l = face.getIsLeftEyeOpenProbability();
             float r = face.getIsRightEyeOpenProbability();
             if (l < 0.35 && r < 0.35)//눈 감음
@@ -474,7 +512,8 @@ public class MainFragment extends AppCompatActivity {
                         if (errorCnt1 > 3 || errorCnt2 > 3) {
                             errorCnt1 = 0;
                             errorCnt2 = 0;
-                            filterOn(2);
+                            Log.e("얼굴", "에러");
+                            filter(true, true);
                         }
                     }
                 }
@@ -486,15 +525,15 @@ public class MainFragment extends AppCompatActivity {
                 if (detectionCheck) {
                     if (min_time > eyeCloseTime) {
                     } else if (eyeCloseTime > max_time) {
-
-                        filterOn(3);
+                        Log.e("얼굴", "warning");
+                        filter(true, true);
                     }
                 }
                 begin = stop;
             }
             state_f = state_i;
-
-            filterOff();
+//            Log.e("필터 끄기", "2");
+            filter(false, false);
         }
     }
 
